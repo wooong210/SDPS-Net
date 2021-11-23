@@ -2,19 +2,20 @@ import torch
 import torch.nn as nn
 from torch.nn.init import kaiming_normal_
 from . import model_utils
+from . import newconv
 
 class FeatExtractor(nn.Module):
     def __init__(self, batchNorm=False, c_in=3, other={}):
         super(FeatExtractor, self).__init__()
         self.other = other
-        self.conv1 = model_utils.conv(batchNorm, c_in, 64,  k=3, stride=1, pad=1)
-        self.conv2 = model_utils.conv(batchNorm, 64,   128, k=3, stride=2, pad=1)
-        self.conv3 = model_utils.conv(batchNorm, 128,  128, k=3, stride=1, pad=1)
-        self.conv4 = model_utils.conv(batchNorm, 128,  256, k=3, stride=2, pad=1)
-        self.conv5 = model_utils.conv(batchNorm, 256,  256, k=3, stride=1, pad=1)
+        self.conv1 = newconv.AugmentedConv(in_channels=c_in, out_channels=64, kernel_size=3, stride=1, padding=1, dk=40, dv=4, Nh=4, relative=True, shape=16).cuda()
+        self.conv2 = newconv.AugmentedConv(in_channels=64, out_channels=128, kernel_size=3, stride=2, padding=1, dk=40, dv=4, Nh=4, relative=True, shape=16).cuda()
+        self.conv3 = newconv.AugmentedConv(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1, dk=40, dv=4, Nh=4, relative=True, shape=16).cuda()
+        self.conv4 = newconv.AugmentedConv(in_channels=128, out_channels=256, kernel_size=3, stride=2, padding=1, dk=40, dv=4, Nh=4, relative=True, shape=16).cuda()
+        self.conv5 = newconv.AugmentedConv(in_channels=256, out_channels=256, kernel_size=3, stride=1, padding=1, dk=40, dv=4, Nh=4, relative=True, shape=16).cuda()
         self.conv6 = model_utils.deconv(256, 128)
-        self.conv7 = model_utils.conv(batchNorm, 128, 128, k=3, stride=1, pad=1)
-
+        self.conv7 = newconv.AugmentedConv(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1, dk=40, dv=4, Nh=4, relative=True, shape=16).cuda()
+        
     def forward(self, x):
         out = self.conv1(x)
         out = self.conv2(out)
@@ -31,8 +32,8 @@ class Regressor(nn.Module):
     def __init__(self, batchNorm=False, other={}): 
         super(Regressor, self).__init__()
         self.other   = other
-        self.deconv1 = model_utils.conv(batchNorm, 128, 128,  k=3, stride=1, pad=1)
-        self.deconv2 = model_utils.conv(batchNorm, 128, 128,  k=3, stride=1, pad=1)
+        self.deconv1 = newconv.AugmentedConv(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1, dk=40, dv=4, Nh=4, relative=True, shape=16).cuda()
+        self.deconv2 = newconv.AugmentedConv(in_channels=128, out_channels=128, kernel_size=3, stride=1, padding=1, dk=40, dv=4, Nh=4, relative=True, shape=16).cuda()
         self.deconv3 = model_utils.deconv(128, 64)
         self.est_normal = self._make_output(64, 3, k=3, stride=1, pad=1)
         self.other   = other
@@ -106,3 +107,7 @@ class NENet(nn.Module):
         pred = {}
         pred['n'] = normal
         return pred
+
+
+# CUDA_VISIBLE_DEVICES=0 python main_stage2.py --in_img_num 16 --retrain data/logdir/UPS_Synth_Dataset/CVPR2019/4-17,LCNet,max,adam,cos,ba_h-32,sc_h-128,cr_h-128,in_r-0.0005,no_w-1,di_w-1,in_w-1,in_m-8,di_s-36,in_s-20,in_mask,s1_est_d,s1_est_i,color_aug,int_aug,concat_data/checkpointdir/checkp_20.pth.tar
+# CUDA_VISIBLE_DEVICES=0 python main_stage2.py --in_img_num 4 --retrain data/logdir/UPS_Synth_Dataset/CVPR2019/4-19,LCNet,max,adam,cos,ba_h-32,sc_h-128,cr_h-128,in_r-0.0005,no_w-1,di_w-1,in_w-1,in_m-4,di_s-36,in_s-20,in_mask,s1_est_d,s1_est_i,color_aug,int_aug,concat_data/checkpointdir/checkp_20.pth.tar
